@@ -30,6 +30,7 @@ class InlineCommands:
 
 
 async def start_handler(client: Bot, message: Message, user: User, with_message=True):
+    print(True)
     component = Components()
     component.add_menu_keyboard(MenuKeyboard(text=Command.PROFILE))
     component.add_menu_keyboard(MenuKeyboard(text=Command.DISCOUNTS), row=2)

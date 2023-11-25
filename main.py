@@ -1,3 +1,5 @@
+import os.path
+
 from bale import (
     Bot,
     Message,
@@ -16,6 +18,19 @@ from api import Client
 
 app = Bot(token=config.TOKEN)
 
+
+@app.event
+async def on_ready():
+    if os.path.exists("database.sqlite"):
+        all_users = await models.User.objects.all()
+        for user in all_users:
+            component = Components()
+            component.add_menu_keyboard(MenuKeyboard("/start"))
+            return await app.send_message(
+                user.user_id,
+                "ربات ریستارت شد! لطفا دوباره با استفاده از منو پایین استارت کنید!",
+                components=component
+            )
 
 @app.event
 async def on_message(message: Message):
@@ -72,7 +87,7 @@ async def on_message(message: Message):
                 from_user = await models.User.objects.get(user_id=from_id)
                 await from_user.update(point=from_user.point + 1)
                 await app.send_message(from_id, "یک کاربر جدید با لینک شما وارد ربات شد! یک امتیاز به شما "
-                                                       "اضافه شد")
+                                                "اضافه شد")
         else:
             user = await models.User.objects.create(
                 user_id=user_id,
