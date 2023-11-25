@@ -16,8 +16,8 @@ from api import Client
 class Command:
     START = "/start"
     CANCEL = "انصراف"
-    PROFILE = "حساب من"
-    DISCOUNTS = "درخاست کد"
+    PROFILE = "موجودی حساب / ساخت لینک"
+    DISCOUNTS = "درخواست کد"
 
 
 class InlineCommands:
@@ -35,7 +35,7 @@ async def start_handler(client: Bot, message: Message, user: User, with_message=
     component.add_menu_keyboard(MenuKeyboard(text=Command.DISCOUNTS), row=2)
 
     if with_message:
-        await message.chat.send("سلام به ربات کد تخفیف خوش امدید!", components=component)
+        await message.chat.send("سلام به ربات کد تخفیف خوش آمدید!", components=component)
 
     while True:
         answer_object = await client.wait_for("message")
@@ -56,7 +56,7 @@ async def profile_handler(client: Bot, message: Message, user: User):
     ایدی عددی : {user.user_id}
     تعداد زیر مجموعه ها : {sub_user_count}
     موجودی شما : {user.point * config.reward}
-    تعداد کد های درخاست شده : {discount_buy_count}
+    تعداد کد های درخواست شده : {discount_buy_count}
     لینک اختصاصی شما جهت زیرمجموعه گیری: 
     {config.BOT_LINK + f"?start={user.user_id}"}
     """
@@ -125,7 +125,7 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
     component = Components()
     component.add_menu_keyboard(MenuKeyboard(Command.CANCEL))
     await callback.message.chat.send(
-        "لطفا مبلغ کد تخفیف درخواستی را وارد کنید(تومان) برای مثال:\n20000", components=component)
+        "لطفا مبلغ کد تخفیف درخواستی را وارد کنید(تومان) برای مثال:\n2000", components=component)
 
     while True:
         answer_object = await client.wait_for("message")
@@ -159,7 +159,7 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
     if user.father_name:
         component.add_menu_keyboard(MenuKeyboard(user.father_name))
     component.add_menu_keyboard(MenuKeyboard(Command.CANCEL))
-    await answer_object.reply("لطفا نام و نام خانوادگی پدر خود را وارد کنید برای مثال:\nمحسن غلامی")
+    await answer_object.reply("لطفا نام و نام خانوادگی و نام پدر خود را وارد کنید برای مثال:\nمحسن غلامی")
     while True:
         answer_object = await client.wait_for("message")
         if answer_object.from_user.user_id == callback.from_user.user_id:
@@ -173,7 +173,7 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
         if user.national_code:
             component.add_menu_keyboard(MenuKeyboard(str(user.national_code)))
         component.add_menu_keyboard(MenuKeyboard(Command.CANCEL))
-        await answer_object.reply("لطفا کد ملی خود را وارد کنید برای مثال:\n9109109100")
+        await answer_object.reply("لطفاً کد ملی خود را وارد کنید برای مثال:\n9109109100")
         while True:
             answer_object = await client.wait_for("message")
             if answer_object.from_user.user_id == callback.from_user.user_id:
@@ -210,7 +210,7 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
     component.add_inline_keyboard(InlineKeyboard(
         "لفو تراکنش!", callback_data=InlineCommands.CANCEL_TRANSACTION + ":" + str(transaction.id)))
     await client.send_message(config.ADMIN, text, components=component)
-    await answer_object.reply("درخاست شما با موفقیت ثبت شد به زودی کد تخفیف در همین ربات برای شما ارسال خواهد شد ("
+    await answer_object.reply("درخواست شما با موفقیت ثبت شد به زودی کد تخفیف در همین ربات برای شما ارسال خواهد شد ("
                               "ممکن است تا ۱۲ ساعت طول بکشد!)")
     return await start_handler(client, callback.message, user)
 
