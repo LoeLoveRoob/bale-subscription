@@ -1,0 +1,4 @@
+requests
+orm[aiosqlite]
+aiosqlite
+python-bale-bot
