@@ -1,4 +1,5 @@
-import os.path
+import os
+import sys
 
 from bale import (
     Bot,
@@ -16,6 +17,8 @@ import admin
 from models import Role
 from api import Client
 
+sys.path.append(os.path.dirname(__file__))
+
 app = Bot(token=config.TOKEN)
 
 
@@ -31,6 +34,7 @@ async def on_ready():
                 "ربات ریستارت شد! لطفا دوباره با استفاده از منو پایین استارت کنید!",
                 components=component
             )
+
 
 @app.event
 async def on_message(message: Message):

@@ -3,6 +3,7 @@ from bale import (
     Message,
     Components,
     MenuKeyboard,
+    InputFile,
     RemoveMenuKeyboard,
     InlineKeyboard,
     CallbackQuery,
@@ -30,13 +31,17 @@ class InlineCommands:
 
 
 async def start_handler(client: Bot, message: Message, user: User, with_message=True):
-    print(True)
-    component = Components()
-    component.add_menu_keyboard(MenuKeyboard(text=Command.PROFILE))
-    component.add_menu_keyboard(MenuKeyboard(text=Command.DISCOUNTS), row=2)
-
     if with_message:
-        await message.chat.send("سلام به ربات کد تخفیف خوش آمدید!", components=component)
+        component = Components()
+        component.add_menu_keyboard(MenuKeyboard(text=Command.PROFILE))
+        component.add_menu_keyboard(MenuKeyboard(text=Command.DISCOUNTS), row=2)
+
+        await client.send_message(
+            message.from_user.user_id,
+            # photo,
+            text="سلام به ربات کد تخفیف خوش آمدید!",
+            components=component
+        )
 
     while True:
         answer_object = await client.wait_for("message")
