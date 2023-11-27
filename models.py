@@ -12,13 +12,19 @@ class Role(Enum):
     ADMIN = 1
     USER = 2
 
+class Status(Enum):
+    PENDING = 0
+    CANCELED = 1
+    DELIVERED = 2
+
+
 
 class User(orm.Model):
     id: int
     from_id: int
     user_id: int
     role: str
-    point: int
+    balance: int
     name: str
     father_name: str
     national_code: int
@@ -30,7 +36,7 @@ class User(orm.Model):
         from_id=orm.Integer(allow_null=True, default=None),
         user_id=orm.Integer(unique=True),
         role=orm.Enum(Role),
-        point=orm.Integer(default=0),
+        balance=orm.Integer(default=0),
         name=orm.String(max_length=255, allow_null=True, default=None),
         father_name=orm.String(max_length=255, allow_null=True, default=None),
         national_code=orm.Integer(allow_null=True, default=None),
@@ -70,6 +76,7 @@ class DiscountUser(orm.Model):
         name=orm.String(max_length=255, allow_null=True, default=None),
         father_name=orm.String(max_length=255, allow_null=True, default=None),
         national_code=orm.Integer(allow_null=True, default=None),
+        status=orm.Enum(Status),
     )
 
 async def main():

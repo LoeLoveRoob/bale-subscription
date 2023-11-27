@@ -4,10 +4,11 @@ import sys
 from bale import (
     Bot,
     Message,
-    Components,
-    MenuKeyboard,
-    InlineKeyboard,
-    RemoveMenuKeyboard,
+    MenuKeyboardMarkup,
+    MenuKeyboardButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    ReplyMarkupItem,
     CallbackQuery,
 )
 import config
@@ -17,7 +18,7 @@ import admin
 from models import Role
 from api import Client
 
-sys.path.append(os.path.dirname(__file__))
+# sys.path.append(os.path.dirname(__file__))
 
 app = Bot(token=config.TOKEN)
 
@@ -27,9 +28,16 @@ async def on_ready():
     if os.path.exists("database.sqlite"):
         all_users = await models.User.objects.all()
         for user in all_users:
-            component = Components()
-            component.add_menu_keyboard(MenuKeyboard("/start"))
-            return await app.send_message(
+            remove_message = await app.send_message(
+                user.user_id,
+                "Loading...",
+                components=MenuKeyboardMarkup()
+            )
+            await remove_message.delete()
+
+            component = MenuKeyboardMarkup()
+            component.add(MenuKeyboardButton("/start"))
+            message = await app.send_message(
                 user.user_id,
                 "ربات ریستارت شد! لطفا دوباره با استفاده از منو پایین استارت کنید!",
                 components=component
@@ -61,8 +69,8 @@ async def on_message(message: Message):
     if await models.User.objects.filter(user_id=user_id).exists():
         user = await models.User.objects.get(user_id=user_id)
         if not chat_member:
-            component = Components()
-            component.add_inline_keyboard(InlineKeyboard(
+            component = InlineKeyboardMarkup()
+            component.add(InlineKeyboardButton(
                 text="عضو شدم", callback_data=users.InlineCommands.JOINED))
             return await message.reply(f"لطفا برای استفاده از ربات اول در کانال ما (@{channel.username}) عضو شوید",
                                        components=component)
@@ -75,8 +83,8 @@ async def on_message(message: Message):
                     user_id=user_id,
                     role=Role.USER,
                 )
-                component = Components()
-                component.add_inline_keyboard(InlineKeyboard(
+                component = InlineKeyboardMarkup()
+                component.add(InlineKeyboardButton(
                     text="عضو شدم", callback_data=users.InlineCommands.JOINED + ":" + from_id))
                 return await message.reply(f"لطفا برای استفاده از ربات اول در کانال ما (@{channel.username}) عضو شوید",
                                            components=component)
@@ -89,8 +97,8 @@ async def on_message(message: Message):
                     role=Role.USER,
                 )
                 from_user = await models.User.objects.get(user_id=from_id)
-                await from_user.update(point=from_user.point + 1)
-                await app.send_message(from_id, "یک کاربر جدید با لینک شما وارد ربات شد! یک امتیاز به شما "
+                await from_user.update(balance=(from_user.balance + config.reward))
+                await app.send_message(from_user.user_id, "یک کاربر جدید با لینک شما وارد ربات شد! یک امتیاز به شما "
                                                 "اضافه شد")
         else:
             user = await models.User.objects.create(
@@ -98,8 +106,8 @@ async def on_message(message: Message):
                 role=Role.USER,
             )
             if not chat_member:
-                component = Components()
-                component.add_inline_keyboard(InlineKeyboard(
+                component = InlineKeyboardMarkup()
+                component.add(InlineKeyboardButton(
                     text="عضو شدم", callback_data=users.InlineCommands.JOINED))
                 return await message.reply(f"لطفا برای استفاده از ربات اول در کانال ما (@{channel.username}) عضو شوید",
                                            components=component)

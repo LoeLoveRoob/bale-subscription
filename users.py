@@ -1,16 +1,16 @@
 from bale import (
     Bot,
     Message,
-    Components,
-    MenuKeyboard,
+    MenuKeyboardMarkup,
+    MenuKeyboardButton,
     InputFile,
-    RemoveMenuKeyboard,
-    InlineKeyboard,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
     CallbackQuery,
 )
 
 import config
-from models import User, Discount, DiscountUser, Role
+from models import User, Discount, DiscountUser, Role, Status
 from api import Client
 
 
@@ -30,38 +30,54 @@ class InlineCommands:
     CANCEL_TRANSACTION = "panel:cancel_transaction"
 
 
+async def wait_message(client: Bot, message: Message):
+    def answer(m: Message):
+        return m.author == message.author and bool(m.text)
+
+    answer_object = await client.wait_for("message", check=answer)
+    if answer_object.content == "/panel" or answer_object.content.startswith("/start"):
+        return
+
+    return answer_object
+
+
+async def wait_callback(client: Bot, callback: CallbackQuery):
+    def answer(m: Message):
+        return m.author == callback.from_user and bool(m.text)
+
+    answer_object = await client.wait_for("message", check=answer)
+
+    return answer_object
+
+
 async def start_handler(client: Bot, message: Message, user: User, with_message=True):
     if with_message:
-        component = Components()
-        component.add_menu_keyboard(MenuKeyboard(text=Command.PROFILE))
-        component.add_menu_keyboard(MenuKeyboard(text=Command.DISCOUNTS), row=2)
+        component = MenuKeyboardMarkup()
+        component.add(MenuKeyboardButton(text=Command.PROFILE))
+        component.add(MenuKeyboardButton(text=Command.DISCOUNTS), row=2)
 
-        await client.send_message(
+        file = open(config.IMAGE_PATH, "rb").read()
+        photo = InputFile(file)
+
+        await client.send_photo(
             message.from_user.user_id,
-            # photo,
-            text="سلام به ربات کد تخفیف خوش آمدید!",
+            photo,
+            caption="سلام به ربات کد تخفیف خوش آمدید!",
             components=component
         )
 
-    while True:
-        answer_object = await client.wait_for("message")
-        if answer_object.from_user.user_id == message.from_user.user_id:
-            break
-    if answer_object.content == "/panel":
-        return
+    answer_object = await wait_message(client, message)
     return await answer_checker(client, answer_object, user)
 
 
 async def profile_handler(client: Bot, message: Message, user: User):
-    remove_object = await message.reply("Loading...", components=RemoveMenuKeyboard())
-    await remove_object.delete()
-
+    await user.load()
     sub_user_count = await User.objects.filter(from_id=user.user_id).count()
     discount_buy_count = await DiscountUser.objects.filter(user=user).count()
     text = f"""
     ایدی عددی : {user.user_id}
     تعداد زیر مجموعه ها : {sub_user_count}
-    موجودی شما : {user.point * config.reward}
+    موجودی شما : {user.balance}
     تعداد کد های درخواست شده : {discount_buy_count}
     لینک اختصاصی شما جهت زیرمجموعه گیری: 
     {config.BOT_LINK + f"?start={user.user_id}"}
@@ -71,10 +87,10 @@ async def profile_handler(client: Bot, message: Message, user: User):
 
 
 async def discounts_handler(client: Bot, message: Message, user: User):
-    remove_object = await message.reply("Loading...", components=RemoveMenuKeyboard())
-    await remove_object.delete()
+    remove_message = await message.reply("Loading...", components=MenuKeyboardMarkup())
+    await remove_message.delete()
 
-    component = Components()
+    component = InlineKeyboardMarkup()
     discounts = await Discount.objects.all()
     if not discounts:
         await message.reply("هنوز هیچ تخفیفی اضافه نشده است!")
@@ -82,14 +98,14 @@ async def discounts_handler(client: Bot, message: Message, user: User):
 
     for index, discount in enumerate(discounts):
         discount: Discount
-        component.add_inline_keyboard(InlineKeyboard(
+        component.add(InlineKeyboardButton(
             discount.name,
             callback_data=InlineCommands.DISCOUNT_BUY + ":" + discount.name,
         ),
             row=index + 1
         )
 
-    component.add_inline_keyboard(InlineKeyboard(
+    component.add(InlineKeyboardButton(
         "بازگشت به منوی اصلی",
         callback_data=InlineCommands.RETURN
     ),
@@ -117,9 +133,9 @@ async def joined_callback(client: Bot, callback: CallbackQuery, user: User):
             from_id = int(callback.data.split(":")[2])
             await user.update(from_id=from_id)
             from_user = await User.objects.get(user_id=from_id)
-            await from_user.update(point=from_user.point + 1)
+            await from_user.update(balance=(from_user.balance + config.reward))
             await client.send_message(from_id, "یک کاربر جدید با لینک شما وارد ربات شد! یک امتیاز به شما "
-                                                   "اضافه شد")
+                                               "اضافه شد")
 
         return await start_handler(client, callback.message, user)
 
@@ -128,62 +144,58 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
     await callback.message.delete()
     discount = await Discount.objects.get(name=callback.data.split(":")[2])
     # get price --------------------------------
-    component = Components()
-    component.add_menu_keyboard(MenuKeyboard(Command.CANCEL))
+    component = MenuKeyboardMarkup()
+    component.add(MenuKeyboardButton(Command.CANCEL))
     await callback.message.chat.send(
         "لطفا مبلغ کد تخفیف درخواستی را وارد کنید(تومان) برای مثال:\n2000", components=component)
 
-    while True:
-        answer_object = await client.wait_for("message")
-        if answer_object.from_user.user_id == callback.from_user.user_id:
-            break
+    answer_object = await wait_callback(client, callback)
+    if answer_object.content == Command.CANCEL:
+        return await answer_checker(client, answer_object, user)
+
     if not answer_object.content.isdigit():
         await answer_object.reply("مبلغ به درستی وارد نشده است!")
         return await discount_buy_callback(client, callback, user)
 
     price = int(answer_object.content)
-    user_balance = user.point * config.reward
 
-    if price > user_balance:
-        await answer_object.reply(f"شما موجودی کافی برای انجام این تراکنش را ندارید\n موجودی شما: {user_balance}")
+    if price > user.balance:
+        await answer_object.reply(f"شما موجودی کافی برای انجام این تراکنش را ندارید\n موجودی شما: {user.balance}")
         return await start_handler(client, callback.message, user)
     # get full-name --------------------------------
-    component = Components()
+    component = MenuKeyboardMarkup()
     if user.name:
-        component.add_menu_keyboard(MenuKeyboard(user.name))
-    component.add_menu_keyboard(MenuKeyboard(Command.CANCEL))
+        component.add(MenuKeyboardButton(user.name))
+    component.add(MenuKeyboardButton(Command.CANCEL))
     await answer_object.reply("لطفا نام و نام خانوادگی خود را وارد کنید برای مثال:\nفرهاد غلامی")
-    while True:
-        answer_object = await client.wait_for("message")
-        if answer_object.from_user.user_id == callback.from_user.user_id:
-            break
+
+    answer_object = await wait_callback(client, callback)
+
     if answer_object.content == Command.CANCEL:
         return await answer_checker(client, answer_object, user)
     await user.update(name=answer_object.content)
     # get father_name --------------------------------
-    component = Components()
+    component = MenuKeyboardMarkup()
     if user.father_name:
-        component.add_menu_keyboard(MenuKeyboard(user.father_name))
-    component.add_menu_keyboard(MenuKeyboard(Command.CANCEL))
+        component.add(MenuKeyboardButton(user.father_name))
+    component.add(MenuKeyboardButton(Command.CANCEL))
     await answer_object.reply("لطفا نام و نام خانوادگی و نام پدر خود را وارد کنید برای مثال:\nمحسن غلامی")
-    while True:
-        answer_object = await client.wait_for("message")
-        if answer_object.from_user.user_id == callback.from_user.user_id:
-            break
+
+    answer_object = await wait_callback(client, callback)
+
     if answer_object.content == Command.CANCEL:
         return await answer_checker(client, answer_object, user)
     await user.update(father_name=answer_object.content)
     # get national-code --------------------------------
     while True:
-        component = Components()
+        component = MenuKeyboardMarkup()
         if user.national_code:
-            component.add_menu_keyboard(MenuKeyboard(str(user.national_code)))
-        component.add_menu_keyboard(MenuKeyboard(Command.CANCEL))
+            component.add(MenuKeyboardButton(str(user.national_code)))
+        component.add(MenuKeyboardButton(Command.CANCEL))
         await answer_object.reply("لطفاً کد ملی خود را وارد کنید برای مثال:\n9109109100")
-        while True:
-            answer_object = await client.wait_for("message")
-            if answer_object.from_user.user_id == callback.from_user.user_id:
-                break
+
+        answer_object = await wait_callback(client, callback)
+
         if answer_object.content == Command.CANCEL:
             return await answer_checker(client, answer_object, user)
         if answer_object.content.isdigit():
@@ -192,7 +204,7 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
         else:
             await answer_object.reply("کد ملی باید بصورت عدد باشد! لطفا دوباره امتحان کنید!")
     # final part -----------------------------------------
-    await user.update(point=user.point - int(price / config.reward))
+    await user.update(balance=(user.balance - price))
     transaction = await DiscountUser.objects.create(
         discount=discount,
         user=user,
@@ -200,6 +212,7 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
         name=user.name,
         father_name=user.father_name,
         national_code=user.national_code,
+        status=Status.PENDING,
     )
     text = f"""
     درخواست کد تخفیف جدیدی بوجود امد!
@@ -210,10 +223,10 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
     نوع کد تخفیف: {discount.name}
     مبلغ کد: {price}
     """
-    component = Components()
-    component.add_inline_keyboard(InlineKeyboard(
+    component = InlineKeyboardMarkup()
+    component.add(InlineKeyboardButton(
         "ارسال کد تخفیف", callback_data=InlineCommands.SEND_DISCOUNT + ":" + str(transaction.id)))
-    component.add_inline_keyboard(InlineKeyboard(
+    component.add(InlineKeyboardButton(
         "لفو تراکنش!", callback_data=InlineCommands.CANCEL_TRANSACTION + ":" + str(transaction.id)))
     await client.send_message(config.ADMIN, text, components=component)
     await answer_object.reply("درخواست شما با موفقیت ثبت شد به زودی کد تخفیف در همین ربات برای شما ارسال خواهد شد ("
@@ -234,17 +247,20 @@ commands = {
 
 
 async def answer_checker(client: Bot, message: Message, user: User):
-    if message.content.startswith("/start"):
+    if not message:
+        return
+
+    if message.content.startswith("/start") or message.content == "/panel":
         return
     try:
         return await commands[message.content](client, message, user)
-    except:
+    except KeyError:
         await client.send_message(user.user_id, "دستور یافت نشد!")
-        while True:
-            answer_object = await client.wait_for("message")
-            if answer_object.from_user.user_id == message.from_user.user_id:
-                break
+        answer_object = await wait_message(client, message)
         return await answer_checker(client, answer_object, user)
+    except Exception as e:
+        print(e)
+        return
 
 
 async def callback_checker(client: Bot, callback: CallbackQuery, user: User):

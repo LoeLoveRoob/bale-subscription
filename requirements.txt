@@ -1,4 +1,4 @@
+python-bale-bot==2.4.9
 requests
 orm[aiosqlite]
 aiosqlite
-python-bale-bot

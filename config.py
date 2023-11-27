@@ -3,7 +3,7 @@ TOKEN = "1985538417:CjsFuLboKuy2EUtqRGbYWGzvAMUr1ggBMBWgblxo"
 # ADMIN = 1496493472
 ADMIN = 1496493472
 CHANNEL = 5225256906
-BOT_LINK = "ble.ir/testchannelyekbot"
+BOT_LINK = "ble.ir/claybot"
 IMAGE_PATH = "image.png.jpeg"
 
 reward = 9_000  # Toman
