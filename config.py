@@ -1,9 +1,12 @@
-TOKEN = "1985538417:CjsFuLboKuy2EUtqRGbYWGzvAMUr1ggBMBWgblxo"
-# TOKEN = "1814974296:ui8QpI2qWt7QJmWsgGjsGQih2Dtj8dO6AKHrCCZV"
-# ADMIN = 1496493472
+# bazo-token
+TOKEN = ""
+# admin-user-id
 ADMIN = 1496493472
+# channel-uid
 CHANNEL = 5225256906
+# bot-url
 BOT_LINK = "ble.ir/claybot"
+# start-image-path
 IMAGE_PATH = "image.png.jpeg"
-
-reward = 9_000  # Toman
+# reward-value (TOMAN)
+reward = 9_000
