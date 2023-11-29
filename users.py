@@ -87,14 +87,14 @@ async def profile_handler(client: Bot, message: Message, user: User):
 
 
 async def discounts_handler(client: Bot, message: Message, user: User):
-    remove_message = await message.reply("Loading...", components=MenuKeyboardMarkup())
-    await remove_message.delete()
-
     component = InlineKeyboardMarkup()
     discounts = await Discount.objects.all()
     if not discounts:
         await message.reply("هنوز هیچ تخفیفی اضافه نشده است!")
         return await start_handler(client, message, user, with_message=False)
+
+    remove_message = await message.reply("Loading...", components=MenuKeyboardMarkup())
+    await remove_message.delete()
 
     for index, discount in enumerate(discounts):
         discount: Discount
