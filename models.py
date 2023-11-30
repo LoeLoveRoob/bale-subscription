@@ -39,7 +39,7 @@ class User(orm.Model):
         balance=orm.Integer(default=0),
         name=orm.String(max_length=255, allow_null=True, default=None),
         father_name=orm.String(max_length=255, allow_null=True, default=None),
-        national_code=orm.Integer(allow_null=True, default=None),
+        national_code=orm.String(allow_null=True, default=None, max_length=14),
     )
 
 
@@ -75,7 +75,7 @@ class DiscountUser(orm.Model):
         code=orm.String(max_length=255, allow_null=True, default=None),
         name=orm.String(max_length=255, allow_null=True, default=None),
         father_name=orm.String(max_length=255, allow_null=True, default=None),
-        national_code=orm.Integer(allow_null=True, default=None),
+        national_code=orm.String(allow_null=True, default=None, max_length=14),
         status=orm.Enum(Status),
     )
 

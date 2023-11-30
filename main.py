@@ -46,7 +46,7 @@ async def on_ready():
 
 @app.event
 async def on_message(message: Message):
-    if message.chat.type != "private":
+    if message.chat.type != "private" or not message.content:
         return
     await models.main()
     api = Client(app)
@@ -56,11 +56,13 @@ async def on_message(message: Message):
     # ADMIN ------------------------------
     if user_id == config.ADMIN:
         user, created = await models.User.objects.get_or_create(
-            defaults={"role": Role.ADMIN, "point": 999999999999},
+            defaults={"role": Role.ADMIN, "balance": 999999999999},
             user_id=config.ADMIN
         )
         if text == admin.Command.PANEL:
             return await admin.panel_handler(app, message, user)
+        elif text == users.Command.START:
+            return await users.start_handler(app, message, user)
 
     # USER -------------------------------
     channel = await api.get_chat(config.CHANNEL)
@@ -75,42 +77,36 @@ async def on_message(message: Message):
             return await message.reply(f"لطفا برای استفاده از ربات اول در کانال ما (@{channel.username}) عضو شوید",
                                        components=component)
     else:
-        if message.content.startswith(users.Command.START) and len(message.content.split()) > 1:
-            from_id = message.content.split()[1]
+        if message.content.startswith(users.Command.START):
+            if len(message.content.split()) > 1:
+                from_id = message.content.split()[1]
 
-            if not chat_member:
-                user = await models.User.objects.create(
-                    user_id=user_id,
-                    role=Role.USER,
-                )
-                component = InlineKeyboardMarkup()
-                component.add(InlineKeyboardButton(
-                    text="عضو شدم", callback_data=users.InlineCommands.JOINED + ":" + from_id))
-                return await message.reply(f"لطفا برای استفاده از ربات اول در کانال ما (@{channel.username}) عضو شوید",
-                                           components=component)
+                if not chat_member:
+                    await models.User.objects.create(
+                        user_id=user_id,
+                        role=Role.USER,
+                    )
+                    component = InlineKeyboardMarkup()
+                    component.add(InlineKeyboardButton(
+                        text="عضو شدم", callback_data=users.InlineCommands.JOINED + ":" + from_id))
+                    return await message.reply(f"لطفا برای استفاده از ربات اول در کانال ما (@{channel.username}) عضو شوید",
+                                               components=component)
 
-            # check if the from id valid and user not exists!
-            if from_id.isdigit():
+                # check if the from id valid and from_id exists!
+                if not from_id.isdigit() or not await models.User.objects.filter(user_id=from_id).exists():
+                    return await message.reply("لینک معرف نامعتبر است!")
+
+                from_user = await models.User.objects.get(user_id=from_id)
                 user = await models.User.objects.create(
                     from_id=from_id,
                     user_id=user_id,
                     role=Role.USER,
                 )
-                from_user = await models.User.objects.get(user_id=from_id)
                 await from_user.update(balance=(from_user.balance + config.reward))
                 await app.send_message(from_user.user_id, "یک کاربر جدید با لینک شما وارد ربات شد! یک امتیاز به شما "
                                                 "اضافه شد")
-        else:
-            user = await models.User.objects.create(
-                user_id=user_id,
-                role=Role.USER,
-            )
-            if not chat_member:
-                component = InlineKeyboardMarkup()
-                component.add(InlineKeyboardButton(
-                    text="عضو شدم", callback_data=users.InlineCommands.JOINED))
-                return await message.reply(f"لطفا برای استفاده از ربات اول در کانال ما (@{channel.username}) عضو شوید",
-                                           components=component)
+            else:
+                return await message.reply("لطفا برای استارت ربات از لینک معرف استفاده نمایید")
 
     # < start handler >
     if message.content.startswith(users.Command.START):

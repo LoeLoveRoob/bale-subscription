@@ -17,7 +17,8 @@ from api import Client
 class Command:
     START = "/start"
     CANCEL = "انصراف"
-    PROFILE = "موجودی حساب / ساخت لینک"
+    PROFILE = "موجودی حساب"
+    SUBCATEGORY = "ساخت لینک"
     DISCOUNTS = "درخواست کد"
 
 
@@ -54,17 +55,30 @@ async def start_handler(client: Bot, message: Message, user: User, with_message=
     if with_message:
         component = MenuKeyboardMarkup()
         component.add(MenuKeyboardButton(text=Command.PROFILE))
+        component.add(MenuKeyboardButton(text=Command.SUBCATEGORY))
         component.add(MenuKeyboardButton(text=Command.DISCOUNTS), row=2)
 
-        file = open(config.IMAGE_PATH, "rb").read()
-        photo = InputFile(file)
+        remove_message = await message.reply("Loading...", components=component)
+        # await remove_message.delete()
 
-        await client.send_photo(
-            message.from_user.user_id,
-            photo,
-            caption="سلام به ربات کد تخفیف خوش آمدید!",
-            components=component
-        )
+        if config.START_TYPE == "image":
+            file = open(config.IMAGE_PATH, "rb").read()
+            photo = InputFile(file)
+
+            await client.send_photo(
+                message.from_user.user_id,
+                photo,
+                caption="سلام به ربات کد تخفیف خوش آمدید!",
+            )
+        elif config.START_TYPE == "voice":
+            file = open(config.VOICE_PATH, "rb").read()
+            voice = InputFile(file)
+
+            await client.send_audio(
+                message.from_user.user_id,
+                voice,
+                caption="سلام به ربات کد تخفیف خوش آمدید!",
+            )
 
     answer_object = await wait_message(client, message)
     return await answer_checker(client, answer_object, user)
@@ -79,8 +93,16 @@ async def profile_handler(client: Bot, message: Message, user: User):
     تعداد زیر مجموعه ها : {sub_user_count}
     موجودی شما : {user.balance}
     تعداد کد های درخواست شده : {discount_buy_count}
-    لینک اختصاصی شما جهت زیرمجموعه گیری: 
-    {config.BOT_LINK + f"?start={user.user_id}"}
+    """
+    await message.reply(text)
+    return await start_handler(client, message, user, with_message=False)
+
+
+async def subcategory_handler(client: Bot, message: Message, user: User):
+    text = f"""
+    لینک زیر مجموعه گیری شما:
+    {config.BOT_LINK + "?start=" + str(message.from_user.user_id)}
+    به ازای هر کاربر جدیدی که با لینک شما عضو ربات شود مبلغ {config.reward} به موجودی شما اضافه میشود! 
     """
     await message.reply(text)
     return await start_handler(client, message, user, with_message=False)
@@ -204,6 +226,9 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
         else:
             await answer_object.reply("کد ملی باید بصورت عدد باشد! لطفا دوباره امتحان کنید!")
     # final part -----------------------------------------
+    remove_message = await answer_object.reply("Loading...", components=MenuKeyboardMarkup())
+    await remove_message.delete()
+
     await user.update(balance=(user.balance - price))
     transaction = await DiscountUser.objects.create(
         discount=discount,
@@ -229,15 +254,21 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
     component.add(InlineKeyboardButton(
         "لفو تراکنش!", callback_data=InlineCommands.CANCEL_TRANSACTION + ":" + str(transaction.id)))
     await client.send_message(config.ADMIN, text, components=component)
-    await answer_object.reply("درخواست شما با موفقیت ثبت شد به زودی کد تخفیف در همین ربات برای شما ارسال خواهد شد ("
-                              "ممکن است تا ۱۲ ساعت طول بکشد!)")
-    return await start_handler(client, callback.message, user)
+
+    component = InlineKeyboardMarkup()
+    component.add(InlineKeyboardButton("بازگشت به منوی اصلی", callback_data=InlineCommands.RETURN))
+    await answer_object.reply(
+        "درخواست شما با موفقیت ثبت شد به زودی کد تخفیف در همین ربات برای شما ارسال خواهد شد ("
+        "ممکن است تا ۱۲ ساعت طول بکشد!)",
+        components=component,
+    )
 
 
 commands = {
     # < user menu commands >
     Command.CANCEL: start_handler,
     Command.PROFILE: profile_handler,
+    Command.SUBCATEGORY: subcategory_handler,
     Command.DISCOUNTS: discounts_handler,
     # < user inline commands >
     InlineCommands.RETURN: return_callback,
