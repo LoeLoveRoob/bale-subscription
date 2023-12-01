@@ -182,8 +182,13 @@ async def discount_buy_callback(client: Bot, callback: CallbackQuery, user: User
     price = int(answer_object.content)
 
     if price > user.balance:
-        await answer_object.reply(f"شما موجودی کافی برای انجام این تراکنش را ندارید\n موجودی شما: {user.balance}")
-        return await start_handler(client, callback.message, user)
+        component = InlineKeyboardMarkup()
+        component.add(InlineKeyboardButton("بازگشت به منوی اصلی", callback_data=InlineCommands.RETURN))
+        return await answer_object.reply(
+            f"شما موجودی کافی برای انجام این تراکنش را ندارید\n موجودی شما: {user.balance}",
+            components=component,
+        )
+
     # get full-name --------------------------------
     component = MenuKeyboardMarkup()
     if user.name:
