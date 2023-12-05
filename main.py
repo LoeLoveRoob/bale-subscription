@@ -20,7 +20,7 @@ from api import Client
 
 # sys.path.append(os.path.dirname(__file__))
 
-app = Bot(token=config.TOKEN)
+app = Bot(token=config.TOKEN, http_kwargs={"ssl": False})
 
 
 @app.event
